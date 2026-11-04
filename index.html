@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>BatStat Dashboard</title>
+  <meta name="description" content="BatStat: a one-page analytics dashboard for program chairs that links portal grades with SETE results.">
+  <meta name="theme-color" content="#8F1729">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" width="0" height="0">
+    <defs>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5M5.5 10v9.5h13V10M10 19.5V14h4v5.5"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 10a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 15 6 10ZM10 20a2.2 2.2 0 0 0 4 0"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20v-6M12 20V5M19 20v-9"/></symbol>
+      <symbol id="i-table" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M9.5 10v9.5"/></symbol>
+      <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.6-3.8 3-5.8 6.5-5.8s5.9 2 6.5 5.8M15.5 5.3a3.5 3.5 0 0 1 0 6.4M18 14.8c2 .8 3.1 2.5 3.5 5.2"/></symbol>
+      <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3.5h9l4 4v13H6zM14.5 3.5V8H19M9.5 12.5h6M9.5 16.5h6"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4 2.8 20h18.4zM12 10v4.5M12 17.5v.2"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.2v.2"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.2M12 7.8v.2"/></symbol>
+      <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+    </defs>
+  </svg>
+
+  <aside class="sidebar" aria-label="Main navigation">
+    <a class="brand" href="#overview" aria-label="BatStat overview">
+      <img class="brand-full" src="assets/img/logo-full.png" alt="BatStat" width="480" height="449">
+      <img class="brand-mark" src="assets/img/logo-mark.png" alt="BatStat" width="256" height="169">
+    </a>
+    <nav class="side-nav">
+      <a href="#overview" data-nav="overview" title="Overview"><svg class="icon"><use href="#i-home"/></svg><span>Overview</span></a>
+      <a href="#actions" data-nav="actions" title="Action items"><svg class="icon"><use href="#i-bell"/></svg><span>Action items</span><b class="nav-badge" hidden></b></a>
+      <a href="#classes" data-nav="classes" title="Classes"><svg class="icon"><use href="#i-table"/></svg><span>Classes</span></a>
+      <a href="#faculty" data-nav="faculty" title="Faculty"><svg class="icon"><use href="#i-people"/></svg><span>Faculty</span></a>
+      <a href="#sete" data-nav="sete" title="SETE results"><svg class="icon"><use href="#i-chart"/></svg><span>SETE results</span></a>
+    </nav>
+    <p class="side-foot">Batangas State University</p>
+  </aside>
+
+  <main class="main">
+    <header class="hero" id="hero" data-note="1">
+      <img class="hero-img" alt="" src="assets/img/campus-1280.jpg"
+           srcset="assets/img/campus-1280.jpg 1280w, assets/img/campus-2560.jpg 2560w"
+           sizes="(max-width: 760px) 200vw, 60vw">
+      <div class="hero-wash" aria-hidden="true"></div>
+      <div class="hero-body">
+        <div class="hero-top">
+          <p class="eyebrow"><img class="eyebrow-mark" src="assets/img/logo-mark.png" alt="" width="256" height="169"><span>BatStat</span></p>
+          <p class="role-pill"><svg class="icon"><use href="#i-lock"/></svg><span id="rolePill">Program Chair · BS IT</span></p>
+        </div>
+        <h1 id="heroTitle"></h1>
+        <p class="hero-sub" id="heroSub"></p>
+        <nav class="tiles" aria-label="Go to page">
+          <a class="tile" href="#actions"><span class="tile-icon"><svg class="icon"><use href="#i-bell"/></svg><b class="badge nav-badge" hidden></b></span><span>Actions</span></a>
+          <a class="tile" href="#classes"><span class="tile-icon"><svg class="icon"><use href="#i-table"/></svg></span><span>Classes</span></a>
+          <a class="tile" href="#faculty"><span class="tile-icon"><svg class="icon"><use href="#i-people"/></svg></span><span>Faculty</span></a>
+          <a class="tile" href="#sete"><span class="tile-icon"><svg class="icon"><use href="#i-chart"/></svg></span><span>SETE</span></a>
+        </nav>
+      </div>
+    </header>
+
+    <form class="filters" id="filters" data-note="2" aria-label="Dashboard filters" onsubmit="return false">
+      <label class="field"><span>Academic year</span><select id="fAy"></select></label>
+      <label class="field"><span>Semester</span><select id="fSem"></select></label>
+      <div class="field wide"><span>College</span><p class="fixed-value" title="Set by your Program Chair account"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><b id="fCollege"></b></p></div>
+      <div class="field"><span>Department</span><p class="fixed-value" title="Set by your Program Chair account"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><b id="fDept"></b></p></div>
+      <div class="filter-actions">
+        <button type="button" class="btn ghost" id="resetBtn">Reset</button>
+      </div>
+    </form>
+
+    <p class="context-line" id="contextLine" role="status"></p>
+
+    <!-- Overview: the one-page dashboard for Part III -->
+    <div class="view" data-view="overview">
+      <section class="kpis" id="kpis" aria-label="Key performance indicators"></section>
+
+      <div class="grid two">
+        <section class="card" id="alerts" data-note="8" aria-labelledby="alertsTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="alertsTitle">Alerts</h2>
+              <p class="card-sub" id="alertsSub"></p>
+            </div>
+          </div>
+          <div id="alertsList"></div>
+        </section>
+
+        <section class="card" data-note="9" aria-labelledby="scatterTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="scatterTitle">Teaching and learning by class</h2>
+              <p class="card-sub" id="scatterSub"></p>
+            </div>
+          </div>
+          <div class="legend" id="scatterLegend"></div>
+          <div class="chart" id="scatter"></div>
+          <p class="chart-note" id="scatterNote"></p>
+        </section>
+      </div>
+
+      <div class="grid two">
+        <section class="card" data-note="10" aria-labelledby="trendTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="trendTitle">SETE by dimension across semesters</h2>
+              <p class="card-sub">Weighted by responses. All panels share one zoomed axis of the 5-point scale.</p>
+            </div>
+            <button type="button" class="btn ghost small" id="trendToggle" aria-pressed="false">View table</button>
+          </div>
+          <p class="chart-note trend-note" id="trendNote" hidden></p>
+          <div class="legend" id="trendLegend"></div>
+          <div class="minis" id="trend"></div>
+          <div class="table-wrap" id="trendTable" hidden></div>
+        </section>
+
+        <section class="card" data-note="11" aria-labelledby="barsTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="barsTitle">Pass rate by course</h2>
+              <p class="card-sub" id="barsSub"></p>
+            </div>
+          </div>
+          <div class="legend" id="barsLegend"></div>
+          <div class="bars" id="bars"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Action items: follow up on flagged classes -->
+    <div class="view" data-view="actions" hidden>
+      <section class="card" aria-labelledby="actionsTitle">
+        <div class="card-head wrap">
+          <div>
+            <h2 id="actionsTitle">Classes to follow up</h2>
+            <p class="card-sub" id="actionsSub"></p>
+          </div>
+          <div class="table-tools" id="actionTools"></div>
+        </div>
+        <div id="actionsBody"></div>
+      </section>
+    </div>
+
+    <!-- Classes: section performance and planning -->
+    <div class="view" data-view="classes" hidden>
+      <section class="card" id="planningCard" aria-labelledby="planningTitle">
+        <div class="card-head">
+          <div>
+            <h2 id="planningTitle">Section planning</h2>
+            <p class="card-sub" id="planningSub"></p>
+          </div>
+        </div>
+        <div id="planning"></div>
+      </section>
+
+      <section class="card" aria-labelledby="classesTitle">
+        <div class="card-head wrap">
+          <div>
+            <h2 id="classesTitle">All classes</h2>
+            <p class="card-sub" id="classesSub"></p>
+          </div>
+          <div class="table-tools" id="tableTools">
+            <label class="search"><svg class="icon"><use href="#i-search"/></svg><span class="sr-only">Search classes</span><input id="search" type="search" placeholder="Search course or faculty"></label>
+            <button type="button" class="btn ghost small" id="flaggedBtn" aria-pressed="false">Flagged only</button>
+            <button type="button" class="btn chip" id="courseChip" hidden></button>
+          </div>
+        </div>
+        <div id="classesBody"></div>
+      </section>
+    </div>
+
+    <!-- Faculty: teaching load and support planning -->
+    <div class="view" data-view="faculty" hidden>
+      <section class="summary" id="facultySummary" aria-label="Faculty summary"></section>
+      <section class="card" aria-labelledby="facultyTitle">
+        <div class="card-head">
+          <div>
+            <h2 id="facultyTitle">Teaching load and support</h2>
+            <p class="card-sub" id="facultySub"></p>
+          </div>
+        </div>
+        <div id="facultyBody"></div>
+      </section>
+    </div>
+
+    <!-- SETE results: dimensions, themes and courses -->
+    <div class="view" data-view="sete" hidden>
+      <div id="seteLocked"></div>
+      <div class="grid two" id="seteTop">
+        <section class="card" aria-labelledby="seteDimTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="seteDimTitle">Results by dimension</h2>
+              <p class="card-sub" id="seteDimSub"></p>
+            </div>
+          </div>
+          <div id="seteDims"></div>
+        </section>
+        <section class="card" aria-labelledby="seteThemesTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="seteThemesTitle">Recurring comment themes</h2>
+              <p class="card-sub">Use these to choose faculty development topics.</p>
+            </div>
+          </div>
+          <div id="seteThemes"></div>
+        </section>
+      </div>
+      <section class="card" id="seteCoursesCard" aria-labelledby="seteCoursesTitle">
+        <div class="card-head">
+          <div>
+            <h2 id="seteCoursesTitle">Results by course</h2>
+            <p class="card-sub">Scores below 3.50 are marked. Select a course to open its classes.</p>
+          </div>
+        </div>
+        <p class="chart-note swipe-hint">Swipe the table sideways to see each dimension.</p>
+        <div id="seteCourses"></div>
+      </section>
+    </div>
+
+    <footer class="privacy" data-note="13">
+      <svg class="icon"><use href="#i-lock"/></svg>
+      <p><strong>Confidentiality.</strong> Access follows your role and assigned program. SETE scores from fewer than 5 respondents are hidden, comments appear only as themes, and no student names appear on this page. This mockup uses invented sample data and coded faculty.</p>
+    </footer>
+
+    <div class="mock-tools">
+      <span>Class submission:</span>
+      <button type="button" class="link-btn" id="labelsBtn" aria-pressed="false">Show component labels</button>
+      <button type="button" class="link-btn" data-open-notes>Design notes</button>
+    </div>
+  </main>
+
+  <nav class="tabbar" aria-label="Main navigation, mobile">
+    <a href="#overview" data-nav="overview"><svg class="icon"><use href="#i-home"/></svg><span>Overview</span></a>
+    <a href="#actions" data-nav="actions"><svg class="icon"><use href="#i-bell"/></svg><span>Actions</span><b class="nav-badge" hidden></b></a>
+    <a href="#classes" data-nav="classes"><svg class="icon"><use href="#i-table"/></svg><span>Classes</span></a>
+    <a href="#faculty" data-nav="faculty"><svg class="icon"><use href="#i-people"/></svg><span>Faculty</span></a>
+    <a href="#sete" data-nav="sete"><svg class="icon"><use href="#i-chart"/></svg><span>SETE</span></a>
+  </nav>
+
+  <dialog class="sheet" id="drawer" aria-labelledby="drawerTitle">
+    <div class="sheet-head">
+      <div>
+        <h2 id="drawerTitle"></h2>
+        <p class="card-sub" id="drawerSub"></p>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close details"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="sheet-body" id="drawerBody"></div>
+  </dialog>
+
+  <dialog class="sheet wide" id="notes" aria-labelledby="notesTitle">
+    <div class="sheet-head">
+      <div>
+        <h2 id="notesTitle">Design notes</h2>
+        <p class="card-sub">Part III: what each labeled component does and why.</p>
+      </div>
+      <button type="button" class="icon-btn" data-close aria-label="Close design notes"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="sheet-body notes">
+      <p><strong>Primary user: Program Chair.</strong> Chairs make the decisions closest to the classroom: assigning teaching loads, opening or merging sections, planning faculty mentoring and referring at-risk classes for review. Everything here is a <em>proposed enhancement</em>. The current portal and SETE do not share data, so the linked views assume the proposed integration by faculty ID, subject code, section and semester.</p>
+
+      <h3>Labeled components (Overview page)</h3>
+      <ol class="component-list">
+        <li id="note-1"><b>Header.</b> Shows the app name, the signed-in role and shortcuts to each page.</li>
+        <li id="note-2"><b>Filters (interactive feature 1).</b> Academic year and semester, including Summer 1 and Summer 2, update every number and chart together, on every page. College and department are fixed to the chair's assignment.</li>
+        <li id="note-3"><b>KPI 1: Average SETE rating.</b> Response-weighted score for the term. Target: 3.50 or higher.</li>
+        <li id="note-4"><b>KPI 2: SETE response rate.</b> Shows how far the ratings can be trusted. Target: 50% or higher.</li>
+        <li id="note-5"><b>KPI 3: Pass rate.</b> Share of enrolled students who passed. Target: 75% or higher.</li>
+        <li id="note-6"><b>KPI 4: Students at risk.</b> Students with failing midterm grades. Target: under 15% of enrolled.</li>
+        <li id="note-7"><b>KPI 5: Grades submitted on time.</b> Share of classes that met the Registrar's deadline. Target: 90% or higher.</li>
+        <li id="note-8"><b>Alerts (warning mechanism).</b> Threshold rules flag classes, explain why and link to the full follow-up list. The chair can mark each one as reviewed.</li>
+        <li id="note-9"><b>Visualization 1: Scatter plot.</b> The view only integration makes possible. Each dot is a class, and the four zones separate a teaching concern from a student-support concern.</li>
+        <li id="note-10"><b>Visualization 2: Small-multiple line charts.</b> One panel per SETE dimension across six regular semesters, against the college average. Summer terms stay out of the lines because their classes are few and small.</li>
+        <li id="note-11"><b>Visualization 3: Horizontal bar chart.</b> Ranks courses by pass rate against the 75% target. Selecting a bar opens that course's classes.</li>
+        <li id="note-12"><b>Drill-down (interactive feature 2).</b> KPI cards and bars open the class list. Alerts and dots open a details panel with dimension scores, response confidence, comment themes and a suggested action.</li>
+        <li id="note-13"><b>Confidentiality notice.</b> States the access and privacy rules where users can see them.</li>
+      </ol>
+
+      <h3>Account pages: built for the Program Chair</h3>
+      <p>Overview is the one-page dashboard. The other pages support the chair's decisions listed in Part I.</p>
+      <div class="table-wrap">
+        <table class="plain">
+          <thead><tr><th>Page</th><th>Question it answers</th><th>Decision it supports</th></tr></thead>
+          <tbody>
+            <tr><td>Overview</td><td>How did the program do this term?</td><td>Where to focus first</td></tr>
+            <tr><td>Action items</td><td>Which classes need me, and why?</td><td>Refer at-risk classes for review and track follow-up</td></tr>
+            <tr><td>Classes</td><td>How is each section doing and how full is it?</td><td>Open, merge or rebalance sections, and follow up on late grades</td></tr>
+            <tr><td>Faculty</td><td>Who is overloaded, who has room and who needs support?</td><td>Assign teaching loads and plan mentoring</td></tr>
+            <tr><td>SETE results</td><td>What do students report by dimension, course and theme?</td><td>Choose faculty development topics</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Alert rules</h3>
+      <div class="table-wrap">
+        <table class="plain">
+          <thead><tr><th>Rule</th><th>Trigger</th><th>Level</th></tr></thead>
+          <tbody>
+            <tr><td>Priority review</td><td>SETE below 3.50 and pass rate below 75%</td><td>Critical</td></tr>
+            <tr><td>Low pass rate</td><td>Pass rate below 75%, with SETE at target</td><td>Warning</td></tr>
+            <tr><td>Teaching support</td><td>SETE below 3.50, with pass rate at target</td><td>Warning</td></tr>
+            <tr><td>Midterm risk</td><td>25% or more of the class failing at midterm</td><td>Warning</td></tr>
+            <tr><td>Low response</td><td>Fewer than 50% of students responded</td><td>Caution</td></tr>
+            <tr><td>Late grades</td><td>Grades submitted after the deadline</td><td>Caution</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="chart-note">All targets, the section capacities (45 students, or 30 in summer), the 18-unit load limit and the summer class offerings are assumptions for this mockup. A live system would use the university's official values.</p>
+
+      <h3>Guide questions</h3>
+      <div class="qa">
+        <h4>What information should appear first?</h4>
+        <p>The five KPI cards appear directly under the filters, followed by the alerts. The chair first sees how the term went and which classes need action. Charts come next, for anyone who wants to know why, and the other pages hold the details.</p>
+        <h4>Which visualization best presents SETE results across semesters or dimensions?</h4>
+        <p>Small-multiple line charts. Lines show change over time, and one panel per dimension shows all four without tangled lines. All panels share one scale, so they compare fairly, and the college average gives context.</p>
+        <h4>How can users filter by academic year, semester, college or department?</h4>
+        <p>A single filter row sits above the content on every page and stays in view on larger screens. The chair chooses the academic year and the semester: 1st Semester, 2nd Semester, Summer 1 or Summer 2. College and department are shown but locked, because the account sets them. Every component recalculates from the same selection, so the numbers always agree, and Reset restores the default view. Roles with wider access, such as a dean, would be able to change these two filters.</p>
+        <h4>How does the dashboard identify academic concerns or teaching improvement opportunities?</h4>
+        <p>Alerts catch classes that cross a threshold. The scatter plot separates three situations: both measures low, low SETE only (mentoring or peer observation) and low pass rate only (prerequisites, section size or remedial sessions). The Faculty page suggests mentoring and possible mentors, and the SETE page groups recurring comment themes. Results prompt a review. They do not assign blame, because SETE measures perception and should be read with other evidence.</p>
+        <h4>How does the dashboard protect confidential evaluations and student information?</h4>
+        <p>Role-based access limits the chair to their assigned college and department, so the filters offer no other department to open. Other departments appear only inside the college average. SETE scores with fewer than 5 respondents are hidden, comments appear only as themes, and students are shown as counts. A live system would also need secure sign-in, access logs and compliance with the Data Privacy Act of 2012 (RA 10173). Counseling and health records stay out of the dashboard entirely.</p>
+      </div>
+
+      <h3>How this answers the Part I limitations</h3>
+      <div class="table-wrap">
+        <table class="plain">
+          <thead><tr><th>Part I limitation</th><th>Dashboard response</th></tr></thead>
+          <tbody>
+            <tr><td>Portal and SETE are separate</td><td>Scatter plot and class list linked by faculty, subject, section and semester</td></tr>
+            <tr><td>Static lists and manual reports</td><td>KPI cards and charts that recalculate from the filters</td></tr>
+            <tr><td>No trend view</td><td>Six-semester line charts, plus sparklines and changes on KPI cards</td></tr>
+            <tr><td>No early warning</td><td>Threshold alerts, including midterm risk before final grades</td></tr>
+            <tr><td>SETE shown without response rate</td><td>Response rate beside every score, with low-response classes drawn as hollow dots</td></tr>
+            <tr><td>Comments not analyzed</td><td>Comment themes on the SETE results page and in class details</td></tr>
+            <tr><td>Limited comparison and filtering</td><td>Filters by academic year and semester within the chair's college and department, plus a college benchmark</td></tr>
+            <tr><td>No role-based analytics</td><td>College and department locked to the chair's assignment</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="tip" id="tip" role="status" hidden></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
