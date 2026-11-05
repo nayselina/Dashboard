@@ -177,6 +177,7 @@
             <button type="button" class="btn chip" id="courseChip" hidden></button>
           </div>
         </div>
+        <div class="year-levels" id="yearLevels"></div>
         <div id="classesBody"></div>
       </section>
     </div>
@@ -278,14 +279,14 @@
         <li id="note-2"><b>Filters (interactive feature 1).</b> Academic year and semester, including Summer 1 and Summer 2, update every number and chart together, on every page. College and department are fixed to the chair's assignment.</li>
         <li id="note-3"><b>KPI 1: Average SETE rating.</b> Response-weighted score for the term. Target: 3.50 or higher.</li>
         <li id="note-4"><b>KPI 2: SETE response rate.</b> Shows how far the ratings can be trusted. Target: 50% or higher.</li>
-        <li id="note-5"><b>KPI 3: Pass rate.</b> Share of enrolled students who passed. Target: 75% or higher.</li>
-        <li id="note-6"><b>KPI 4: Students at risk.</b> Students with failing midterm grades. Target: under 15% of enrolled.</li>
+        <li id="note-5"><b>KPI 3: Pass rate.</b> Share of class enrollments that ended in a passing grade. Target: 75% or higher.</li>
+        <li id="note-6"><b>KPI 4: Failing grades at midterm.</b> An early warning before final grades. It counts class enrollments, so a student failing two classes counts twice. Target: under 15% of class enrollments.</li>
         <li id="note-7"><b>KPI 5: Grades submitted on time.</b> Share of classes that met the Registrar's deadline. Target: 90% or higher.</li>
         <li id="note-8"><b>Alerts (warning mechanism).</b> Threshold rules flag classes, explain why and link to the full follow-up list. The chair can mark each one as reviewed.</li>
         <li id="note-9"><b>Visualization 1: Scatter plot.</b> The view only integration makes possible. Each dot is a class, and the four zones separate a teaching concern from a student-support concern.</li>
-        <li id="note-10"><b>Visualization 2: Small-multiple line charts.</b> One panel per SETE dimension across six regular semesters, against the college average. Summer terms stay out of the lines because their classes are few and small.</li>
+        <li id="note-10"><b>Visualization 2: Small-multiple line charts.</b> One panel per SETE dimension across six regular semesters, against the college average. Summer terms stay out of the lines because each has just one course.</li>
         <li id="note-11"><b>Visualization 3: Horizontal bar chart.</b> Ranks courses by pass rate against the 75% target. Selecting a bar opens that course's classes.</li>
-        <li id="note-12"><b>Drill-down (interactive feature 2).</b> KPI cards and bars open the class list. Alerts and dots open a details panel with dimension scores, response confidence, comment themes and a suggested action.</li>
+        <li id="note-12"><b>Drill-down (interactive feature 2).</b> KPI cards and bars open the class list. Alerts and dots open a details panel with final grades, previous offerings, dimension scores, response confidence, comment themes and a suggested action.</li>
         <li id="note-13"><b>Confidentiality notice.</b> States the access and privacy rules where users can see them.</li>
       </ol>
 
@@ -297,7 +298,7 @@
           <tbody>
             <tr><td>Overview</td><td>How did the program do this term?</td><td>Where to focus first</td></tr>
             <tr><td>Action items</td><td>Which classes need me, and why?</td><td>Refer at-risk classes for review and track follow-up</td></tr>
-            <tr><td>Classes</td><td>How is each section doing and how full is it?</td><td>Open, merge or rebalance sections, and follow up on late grades</td></tr>
+            <tr><td>Classes</td><td>How is each section doing and how full is it?</td><td>Open, merge or rebalance sections at each year level, and follow up on late grades</td></tr>
             <tr><td>Faculty</td><td>Who is overloaded, who has room and who needs support?</td><td>Assign teaching loads and plan mentoring</td></tr>
             <tr><td>SETE results</td><td>What do students report by dimension, course and theme?</td><td>Choose faculty development topics</td></tr>
           </tbody>
@@ -318,7 +319,7 @@
           </tbody>
         </table>
       </div>
-      <p class="chart-note">All targets, the section capacities (45 students, or 30 in summer), the 18-unit load limit and the summer class offerings are assumptions for this mockup. A live system would use the university's official values.</p>
+      <p class="chart-note">Course codes, titles, units, year levels and terms follow the BS IT curriculum on the student portal. Sections, enrollment, grades, SETE ratings, comment themes, faculty profiles and teaching assignments are invented. Students are assumed to move in block sections. All targets, the section capacities (45 students, or 30 for smaller NSTP components), the 18-unit load limit and the split of summer courses into Summer 1 and Summer 2 are assumptions. A live system would use the university's official values.</p>
 
       <h3>Guide questions</h3>
       <div class="qa">

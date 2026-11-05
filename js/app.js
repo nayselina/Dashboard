@@ -23,8 +23,12 @@
     sort: { key: 'level', dir: -1 },
     actionLevel: 'all',
     actionStatus: 'open',
+    yearLevel: 'all',
+    barsAll: false,
     trendTable: false
   };
+
+  const YEAR_NAMES = { 1: '1st year', 2: '2nd year', 3: '3rd year', 4: '4th year' };
 
   /* ---------- DOM helpers ---------- */
   const $ = sel => document.querySelector(sel);
@@ -141,6 +145,12 @@
     if (r.responses < T.minResponses) issues.push({ level: 'caution', title: 'Too few responses', why: `Only ${r.responses} of ${r.enrolled} students responded, so the score is hidden.`, next: 'Encourage participation next term. Do not draw conclusions from this class.' });
     else if (responseOf(r) < T.response) issues.push({ level: 'caution', title: 'Low response', why: `Only ${Math.round(responseOf(r))}% of students responded (${r.responses} of ${r.enrolled}).`, next: 'Read this score with caution and encourage participation next term.' });
     if (r.lateDays > 0) issues.push({ level: 'caution', title: 'Late grades', why: `Grades were submitted ${r.lateDays} day${r.lateDays > 1 ? 's' : ''} after the deadline.`, next: 'Check whether the faculty member needs help with the submission schedule.' });
+    // A chair cannot mentor or schedule another department's faculty, only raise it with them.
+    if (r.service) {
+      issues.filter(i => ['Priority review', 'Teaching support', 'Late grades'].includes(i.title)).forEach(i => {
+        i.next = "Another department teaches this course, so raise this with that department's chair.";
+      });
+    }
     return issues.sort((a, b) => LEVELS[b.level].rank - LEVELS[a.level].rank);
   }
   const levelOf = r => {
@@ -241,8 +251,8 @@
       delta: d => `${Math.abs(d).toFixed(1)} pts`
     },
     {
-      key: 'atRiskShare', sort: 'midterm', sortDir: -1, label: 'Students at risk', target: 'Target: under 15% of enrolled', up: false,
-      value: m => m.atRisk.toLocaleString(), unit: m => `${m.atRiskShare.toFixed(1)}% of enrolled`, series: m => m.atRiskShare,
+      key: 'atRiskShare', sort: 'midterm', sortDir: -1, label: 'Failing grades at midterm', target: 'Target: under 15% of class enrollments', up: false,
+      value: m => m.atRisk.toLocaleString(), unit: m => `${m.atRiskShare.toFixed(1)}% of class enrollments`, series: m => m.atRiskShare,
       status: m => (m.atRiskShare < T.atRiskShare ? 'good' : m.atRiskShare < T.atRiskShare + 10 ? 'warning' : 'critical'),
       delta: d => `${Math.abs(d).toFixed(1)} pts`
     },
@@ -297,7 +307,7 @@
         title: 'Sort the class list by this measure',
         onclick: () => {
           state.sort = { key: k.sort, dir: k.sortDir };
-          state.course = null; state.search = ''; state.flagged = false;
+          state.course = null; state.search = ''; state.flagged = false; state.yearLevel = 'all';
           $('#search').value = '';
           goTab('classes');
         }
@@ -524,7 +534,7 @@
     const data = trendData();
     const sel = trendIndex();
     $('#trendNote').textContent = isSummer()
-      ? `Charts show regular semesters only, because summer classes are few and small. The numbers above each chart are for ${SEM_NAMES[state.sem]}.`
+      ? `Charts show regular semesters only, because a summer term has just one course. The numbers above each chart are for ${SEM_NAMES[state.sem]}.`
       : '';
     $('#trendNote').hidden = !isSummer();
     const program = state.dept === 'ALL' ? `All ${state.college}` : DATA.colleges.find(c => c.id === state.college).departments.find(d => d.id === state.dept).short;
@@ -618,7 +628,9 @@
     const box = $('#bars');
     const scoped = inScope();
     $('#barsSub').textContent = `Lowest first.${scoped ? ' Select a course to open its classes.' : ''}`;
-    box.replaceChildren(...list.map(g => {
+    const LIMIT = 8;
+    const shown = state.barsAll ? list : list.slice(0, LIMIT);
+    box.replaceChildren(...shown.map(g => {
       const below = g.pass < T.pass;
       const content = [
         h('span', { class: 'bar-label' }, h('b', {}, g.code), h('span', {}, g.title)),
@@ -643,6 +655,12 @@
         }
       }, content);
     }));
+    if (list.length > LIMIT) {
+      box.append(h('button', {
+        type: 'button', class: 'link-btn bars-more',
+        onclick: () => { state.barsAll = !state.barsAll; renderBars(); }
+      }, state.barsAll ? 'Show lowest 8' : `Show all ${list.length} courses`));
+    }
     legend($('#barsLegend'), [
       { key: 'bar-alert', label: 'Below 75% target' },
       { key: 'bar-ok', label: 'At or above target' },
@@ -654,6 +672,7 @@
     state.course = code;
     state.search = '';
     state.flagged = false;
+    state.yearLevel = 'all';
     $('#search').value = '';
     goTab('classes');
   }
@@ -664,35 +683,47 @@
   function renderPlanning() {
     const box = $('#planning');
     const rows = currentRows();
-    $('#planningSub').textContent = `Based on enrollment against a capacity of ${rows[0].capacity} students per ${isSummer() ? 'summer ' : ''}section.`;
+    $('#planningSub').textContent = isSummer()
+      ? 'Based on enrollment against a capacity of 45 students per section.'
+      : 'Based on enrollment against section capacity: 45 students, or 30 for smaller NSTP components.';
     const full = rows.filter(r => fillOf(r) >= 100).sort((a, b) => fillOf(b) - fillOf(a));
-    const low = rows.filter(r => fillOf(r) < T.fillLow).sort((a, b) => fillOf(a) - fillOf(b));
-    const item = (r, advice) => h('li', {},
-      h('b', {}, `${r.code} · ${r.section}`),
-      h('span', {}, `${r.enrolled} of ${r.capacity} students (${Math.round(fillOf(r))}%)`),
-      h('span', { class: 'next' }, advice));
-    const group = (title, rowsIn, advice, empty) => h('div', { class: 'plan-group' },
+    // A block takes its courses together, so low enrollment is a decision about the whole block.
+    const blocks = new Map();
+    rows.filter(r => fillOf(r) < T.fillLow).forEach(r => {
+      if (!blocks.has(r.section)) blocks.set(r.section, []);
+      blocks.get(r.section).push(r);
+    });
+    const item = (title, detail, advice) => h('li', {},
+      h('b', {}, title), h('span', {}, detail), h('span', { class: 'next' }, advice));
+    const blockAdvice = list => {
+      const r = list[0];
+      const others = rows.filter(x => x.code === r.code && x.section !== r.section);
+      if (!others.length) return 'No other section offers these courses. Check whether they must still run.';
+      const fits = others.find(x => x.enrolled + r.enrolled <= x.capacity);
+      if (fits) return `Could merge with ${fits.section}: ${fits.enrolled + r.enrolled} of ${fits.capacity} students combined.`;
+      const other = others[0];
+      return `Merging with ${other.section} would exceed capacity (${other.enrolled + r.enrolled} of ${other.capacity}). Consider rebalancing students between the sections instead.`;
+    };
+    const lowItems = [...blocks.entries()].map(([section, list]) => {
+      const size = Math.round(avg(list.map(r => r.enrolled)));
+      return item(section, `About ${size} of ${list[0].capacity} students in ${list.length} course${list.length > 1 ? 's' : ''}`, blockAdvice(list));
+    });
+    const fullItems = full.map(r => item(`${r.code} · ${r.section}`,
+      `${r.enrolled} of ${r.capacity} students (${Math.round(fillOf(r))}%)`,
+      `Full or over capacity. Check demand for ${r.code} next term.`));
+    const group = (title, items, empty) => h('div', { class: 'plan-group' },
       h('h3', {}, title),
-      rowsIn.length ? h('ul', { class: 'plan-list' }, rowsIn.map(r => item(r, advice(r))))
-        : h('p', { class: 'chart-note' }, empty));
+      items.length ? h('ul', { class: 'plan-list' }, items) : h('p', { class: 'chart-note' }, empty));
     box.replaceChildren(h('div', { class: 'plan-grid' },
-      group('Consider opening a section', full,
-        r => `Full or over capacity. Check demand for ${r.code} next term.`, 'No section is at capacity.'),
-      group('Low enrollment', low,
-        r => {
-          const others = rows.filter(x => x.code === r.code && x.section !== r.section);
-          if (!others.length) return 'This is the only section of the course. Check whether it must still run.';
-          const fits = others.find(x => x.enrolled + r.enrolled <= x.capacity);
-          if (fits) return `Could merge with ${fits.section}: ${fits.enrolled + r.enrolled} of ${fits.capacity} students combined.`;
-          const other = others[0];
-          return `Merging with ${other.section} would exceed capacity (${other.enrolled + r.enrolled} of ${other.capacity}). Consider rebalancing students between the sections instead.`;
-        }, `No section is below ${T.fillLow}% full.`)));
+      group('Consider opening a section', fullItems, 'No section is at capacity.'),
+      group('Low enrollment', lowItems, `No section is below ${T.fillLow}% full.`)));
   }
 
   /* ---------- Faculty page ---------- */
   function facultySummary() {
     const groups = new Map();
-    currentRows().forEach(r => {
+    // Service courses belong to other departments, so their faculty are not the chair's to assign.
+    currentRows().filter(r => !r.service).forEach(r => {
       if (!groups.has(r.faculty)) groups.set(r.faculty, []);
       groups.get(r.faculty).push(r);
     });
@@ -757,20 +788,21 @@
     }
     const list = facultySummary();
     const has = label => list.filter(f => f.support.some(x => x.label === label)).length;
+    const programClasses = currentRows().filter(r => !r.service).length;
     $('#facultySub').textContent = isSummer()
       ? 'Units cover summer classes only, and the regular load limit does not apply. Select a row for details.'
-      : `Load limit: ${T.loadMax} units. Units include teaching outside ${USER.short} and admin designations. Select a row for details.`;
+      : `Load limit: ${T.loadMax} units, including teaching outside ${USER.short} and admin designations. Faculty from other departments who teach general and service courses are not listed. Select a row for details.`;
     const tile = (label, value, note) => h('article', { class: 'tile-stat' }, h('span', {}, label), h('b', {}, String(value)), h('small', {}, note));
     const seteAverage = weightedSete(currentRows());
     summary.classList.toggle('three', isSummer());
     summary.replaceChildren(...(isSummer()
       ? [
-        tile('Teaching this term', list.length, `${currentRows().length} classes`),
+        tile('Teaching this term', list.length, `${programClasses} classes`),
         tile('Mentoring suggested', has('Offer mentoring'), `SETE below ${T.sete.toFixed(2)}`),
         tile('Average SETE', seteAverage === null ? '–' : seteAverage.toFixed(2), 'This summer term')
       ]
       : [
-        tile('Teaching this term', list.length, `${currentRows().length} classes`),
+        tile('Teaching this term', list.length, `${programClasses} classes`),
         tile('Above the load limit', has('Review load'), `Over ${T.loadMax} units`),
         tile('Room for another class', has('Has room'), `${T.loadRoom} units or fewer`),
         tile('Mentoring suggested', has('Offer mentoring'), `SETE below ${T.sete.toFixed(2)}`)
@@ -806,7 +838,7 @@
   function openFaculty(f, from) {
     lastFocus = from || null;
     $('#drawerTitle').textContent = f.name;
-    $('#drawerSub').textContent = `${f.profile.rank} · ${f.profile.status} · ${f.profile.specialization}`;
+    $('#drawerSub').textContent = [f.profile.rank, f.profile.status, f.profile.specialization, f.profile.designation].filter(Boolean).join(' · ');
     const peers = currentRows();
     $('#drawerBody').replaceChildren(
       h('div', { class: 'stats' },
@@ -869,7 +901,7 @@
     const tally = tone => {
       const map = new Map();
       rated(rows).forEach(r => r.themes.filter(t => t.tone === tone).forEach(t => map.set(t.label, (map.get(t.label) || 0) + t.count)));
-      return [...map.entries()].sort((a, b) => b[1] - a[1]);
+      return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
     };
     const themeGroup = (title, tone, iconName) => h('div', {},
       h('h3', { class: 'theme-title' }, title),
@@ -886,7 +918,7 @@
     });
     const scoreCell = v => h('td', { class: `num${v !== null && v < T.sete ? ' below' : ''}` }, v === null ? h('span', { class: 'muted' }, 'Hidden') : v.toFixed(2));
     const courseRows = [...groups.entries()]
-      .map(([code, list]) => ({ code, list, overall: weightedSete(list), title: list[0].title }))
+      .map(([code, list]) => ({ code, list, overall: weightedSete(list), title: `${list[0].title} · ${YEAR_NAMES[list[0].year]}` }))
       .sort((a, b) => (a.overall === null) - (b.overall === null) || a.overall - b.overall);
     $('#seteCourses').replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'plain sete-table' },
       h('thead', {}, h('tr', {},
@@ -927,6 +959,7 @@
     const col = COLUMNS.find(c => c.key === state.sort.key);
     return currentRows()
       .filter(r => !state.course || r.code === state.course)
+      .filter(r => state.yearLevel === 'all' || r.year === state.yearLevel)
       .filter(r => !state.flagged || levelOf(r) !== 'good')
       .filter(r => !q || `${r.code} ${r.title} ${r.section} ${r.faculty}`.toLowerCase().includes(q))
       .sort((a, b) => {
@@ -953,6 +986,10 @@
     chipBtn.hidden = !state.course;
     if (state.course) chipBtn.replaceChildren(`Course: ${state.course}`, icon('close'));
     $('#flaggedBtn').setAttribute('aria-pressed', String(state.flagged));
+    const years = [...new Set(currentRows().map(r => r.year))].sort();
+    $('#yearLevels').replaceChildren(segmented(
+      [{ value: 'all', label: 'All years' }, ...years.map(y => ({ value: y, label: YEAR_NAMES[y] }))],
+      state.yearLevel, v => { state.yearLevel = v; renderTable(); }, 'Filter by year level'));
 
     const rows = tableRows();
     $('#classesSub').textContent = `${rows.length} of ${currentRows().length} classes shown. Select a row for details.`;
@@ -985,7 +1022,7 @@
         onclick: () => openDrawer(r, tr),
         onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(r, tr); } }
       },
-      cell('Class', 'class-cell', h('b', {}, `${r.code} · ${r.section}`), h('span', {}, r.title)),
+      cell('Class', 'class-cell', h('b', {}, `${r.code} · ${r.section}`), h('span', {}, `${r.title} · ${YEAR_NAMES[r.year]} · ${r.units} units`)),
       cell('Faculty', null, r.faculty),
       cell('Enrolled', `num${fillOf(r) >= 100 || fillOf(r) < T.fillLow ? ' below' : ''}`, `${r.enrolled}`, h('small', {}, ` /${r.capacity}`)),
       cell('SETE', `num${sete !== null && sete < T.sete ? ' below' : ''}`, sete === null ? h('span', { class: 'muted' }, 'Hidden') : sete.toFixed(2)),
@@ -1032,7 +1069,7 @@
     const issues = assess(r);
     const peers = rowsFor(r.ay, r.sem);
     $('#drawerTitle').textContent = `${r.code} · ${r.section}`;
-    $('#drawerSub').textContent = `${r.title} · ${r.faculty} · ${semLabel(r, true)}`;
+    $('#drawerSub').textContent = `${r.title} · ${YEAR_NAMES[r.year]} · ${r.units} units · ${r.faculty} · ${semLabel(r, true)}`;
 
     const dims = sete === null
       ? h('div', { class: 'locked' }, icon('lock'), h('p', {}, `Hidden to protect student anonymity: only ${r.responses} of ${r.enrolled} students responded, below the minimum of ${T.minResponses}.`))
@@ -1051,6 +1088,33 @@
           chip(i.level), h('p', {}, h('b', {}, `${i.title}. `), i.why), h('p', { class: 'next' }, i.next)))))
       : h('section', {}, h('h3', {}, 'Status'), h('p', { class: 'calm-line' }, icon('check'), 'This class meets every target.'));
 
+    // The same course and section in earlier terms shows whether a concern is new or recurring.
+    const termIndex = x => DATA.semesters.findIndex(t => t.ay === x.ay && t.sem === x.sem);
+    const past = DATA.records
+      .filter(x => x.dept === r.dept && x.code === r.code && x.section === r.section && termIndex(x) < termIndex(r))
+      .sort((a, b) => termIndex(b) - termIndex(a))
+      .slice(0, 3);
+    const belowBefore = past.filter(x => passOf(x) < T.pass || (seteOf(x) !== null && seteOf(x) < T.sete)).length;
+    const history = past.length
+      ? h('section', {}, h('h3', {}, 'Previous offerings'),
+        h('div', { class: 'table-wrap' }, h('table', { class: 'plain numeric' },
+          h('thead', {}, h('tr', {}, h('th', {}, 'Term'), h('th', {}, 'SETE'), h('th', {}, 'Responded'), h('th', {}, 'Pass rate'))),
+          h('tbody', {}, past.map(x => h('tr', {},
+            h('td', {}, semLabel(x)),
+            h('td', {}, seteOf(x) === null ? 'Hidden' : seteOf(x).toFixed(2)),
+            h('td', {}, `${Math.round(responseOf(x))}%`),
+            h('td', {}, `${Math.round(passOf(x))}%`)))))),
+        h('p', { class: 'chart-note' }, belowBefore
+          ? `Below a target in ${belowBefore} of the last ${past.length} offering${past.length > 1 ? 's' : ''}.`
+          : `At target in the last ${past.length} offering${past.length > 1 ? 's' : ''}.`))
+      : null;
+
+    const grades = h('section', {}, h('h3', {}, 'Final grades'),
+      h('div', { class: 'grade-grid' },
+        [['Passed', r.passed], ['Failed', r.failed], ['Incomplete', r.inc], ['Dropped', r.dropped]]
+          .map(([label, value]) => h('div', {}, h('b', {}, String(value)), h('span', {}, label)))),
+      h('p', { class: 'chart-note' }, `Average grade ${r.avgGrade.toFixed(2)}, where 1.00 is the highest and 3.00 is the lowest passing grade. Grades submitted ${r.lateDays ? `${r.lateDays} day${r.lateDays > 1 ? 's' : ''} late` : 'on time'}.`));
+
     $('#drawerBody').replaceChildren(
       h('div', { class: 'stats' },
         statBox('SETE', sete === null ? 'Hidden' : sete.toFixed(2), 'of 5', sete !== null && sete < T.sete),
@@ -1058,6 +1122,8 @@
         statBox('Pass rate', `${Math.round(passOf(r))}%`, `${r.passed} of ${r.enrolled}`, passOf(r) < T.pass),
         statBox('Midterm fails', String(r.midtermFail), `${Math.round(midtermShare(r))}% of class`, midtermShare(r) >= T.midtermClass)),
       actions,
+      grades,
+      history,
       h('section', {}, h('h3', {}, 'SETE by dimension'),
         sete !== null ? h('p', { class: 'chart-note' }, 'The tick on each bar marks the program average.') : null,
         dims),
@@ -1157,13 +1223,15 @@
   function onFilter(key, value) {
     state[key] = value;
     state.course = null;
+    state.barsAll = false;
+    state.yearLevel = 'all';
     renderAll();
   }
 
   $('#fAy').addEventListener('change', e => onFilter('ay', e.target.value));
   $('#fSem').addEventListener('change', e => onFilter('sem', Number(e.target.value)));
   $('#resetBtn').addEventListener('click', () => {
-    Object.assign(state, DEFAULTS, { course: null, search: '', flagged: false, actionLevel: 'all', actionStatus: 'open', sort: { key: 'level', dir: -1 } });
+    Object.assign(state, DEFAULTS, { course: null, search: '', flagged: false, actionLevel: 'all', actionStatus: 'open', yearLevel: 'all', barsAll: false, sort: { key: 'level', dir: -1 } });
     $('#search').value = '';
     renderAll();
   });

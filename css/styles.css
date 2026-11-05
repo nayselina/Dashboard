@@ -474,6 +474,12 @@ td small { font-size: 11.5px; font-weight: 400; color: var(--muted); }
 #seteDims .chart-note { margin-top: 12px; }
 .theme-title { font-size: 14px; font-weight: 700; margin: 12px 0 6px; }
 #seteThemes > div:first-child .theme-title { margin-top: 0; }
+.grade-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.grade-grid div { display: flex; flex-direction: column; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--ivory); }
+.grade-grid b { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.grade-grid span { font-size: 12px; color: var(--muted); }
+.year-levels { margin-bottom: 8px; }
+.bars-more { align-self: flex-start; margin: 4px 6px 0; }
 .swipe-hint { display: none; margin: 0 0 8px; }
 .sete-table th.num, .sete-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sete-table th { white-space: normal; vertical-align: bottom; }
