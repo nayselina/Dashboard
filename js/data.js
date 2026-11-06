@@ -169,6 +169,14 @@
     return { pass: .88, bump: 0 };
   }
 
+  // Curriculum group of a course, used to compare major courses with general and service courses.
+  function categoryOf(code) {
+    if (/^(PATHFit|NSTP)/.test(code)) return 'PE and NSTP';
+    if (/^(GEd|Fili|Litr)/.test(code)) return 'General education';
+    if (/^(MATH|Phy|CpE|ES)\s/.test(code)) return 'Math and science';
+    return 'Major';
+  }
+
   const RESPONSE_BY_YEAR = { 1: .8, 2: .73, 3: .67, 4: .6 };
 
   // Theme wording follows the SETE dimension it relates to, in the same order as DIMENSIONS.
@@ -280,14 +288,21 @@
     // Philippine scale: 1.00 is the highest grade and 3.00 is the lowest passing grade.
     const avgGrade = round2(clamp(2.3 - (passed / enrolled - .85) * 2.4 + (rand() - .5) * .3, 1.25, 2.95));
     const lateDays = story ? story.lateDays : (rand() < teacher.late ? 1 + Math.floor(rand() * 6) : 0);
+    const themes = themesFor(rand, ratings, responses);
+
+    // Students failing at midterm who still passed. Drawn last so earlier values keep their seeds.
+    // At least (midtermFail - notPassed) must have recovered; stronger teaching lifts the rest.
+    const recoveryShare = clamp(.3 + (avg - 4) * .25 + (rand() - .5) * .2, .05, .65);
+    const midtermRecovered = Math.min(midtermFail,
+      Math.max(midtermFail - notPassed, Math.round(midtermFail * recoveryShare)));
 
     return {
       id: `${section}|${code}|${term.ay}|${term.sem}`,
       ay: term.ay, sem: term.sem, college: college.id, dept: dept.id,
-      code, title, section, year, units, capacity, service,
+      code, title, section, year, units, capacity, service, category: categoryOf(code),
       faculty: service ? `Service ${faculty.slice(1)}` : `Faculty ${faculty}`,
-      enrolled, responses, ratings, passed, failed, inc, dropped, avgGrade, midtermFail, lateDays,
-      themes: themesFor(rand, ratings, responses)
+      enrolled, responses, ratings, passed, failed, inc, dropped, avgGrade, midtermFail, midtermRecovered, lateDays,
+      themes
     };
   }
 
@@ -346,7 +361,10 @@
     // Assumed values for the mockup, not official university policy.
     thresholds: {
       sete: 3.5, response: 50, pass: 75, midtermClass: 25, atRiskShare: 15, onTime: 90, minResponses: 5,
-      loadMax: 18, loadRoom: 12, mentorSete: 4.1, fillLow: 60
-    }
+      loadMax: 18, loadRoom: 12, mentorSete: 4.1, fillLow: 60,
+      // Student outcomes page. Grades use the Philippine scale, so a lower average grade is better.
+      avgGrade: 2.5, incRate: 4, dropRate: 3, recovery: 30, incClass: 8, gatewayWatch: 80, continuation: 85
+    },
+    courseTypes: ['Major', 'Math and science', 'General education', 'PE and NSTP']
   };
 })();
