@@ -30,6 +30,7 @@
       <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
       <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
       <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+      <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2.5 9.5 12 5l9.5 4.5L12 14zM6.5 11.5v4.3c1.6 1.5 3.6 2.2 5.5 2.2s3.9-.7 5.5-2.2v-4.3M21.5 9.5v5"/></symbol>
       <symbol id="i-tag" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
     </defs>
   </svg>
@@ -44,6 +45,7 @@
       <a href="#actions" data-nav="actions" title="Action items"><svg class="icon"><use href="#i-bell"/></svg><span>Action items</span><b class="nav-badge" hidden></b></a>
       <a href="#classes" data-nav="classes" title="Classes"><svg class="icon"><use href="#i-table"/></svg><span>Classes</span></a>
       <a href="#faculty" data-nav="faculty" title="Faculty"><svg class="icon"><use href="#i-people"/></svg><span>Faculty</span></a>
+      <a href="#students" data-nav="students" title="Student outcomes"><svg class="icon"><use href="#i-cap"/></svg><span>Students</span></a>
       <a href="#sete" data-nav="sete" title="SETE results"><svg class="icon"><use href="#i-chart"/></svg><span>SETE results</span></a>
     </nav>
     <p class="side-foot">Batangas State University</p>
@@ -66,6 +68,7 @@
           <a class="tile" href="#actions"><span class="tile-icon"><svg class="icon"><use href="#i-bell"/></svg><b class="badge nav-badge" hidden></b></span><span>Actions</span></a>
           <a class="tile" href="#classes"><span class="tile-icon"><svg class="icon"><use href="#i-table"/></svg></span><span>Classes</span></a>
           <a class="tile" href="#faculty"><span class="tile-icon"><svg class="icon"><use href="#i-people"/></svg></span><span>Faculty</span></a>
+          <a class="tile" href="#students"><span class="tile-icon"><svg class="icon"><use href="#i-cap"/></svg></span><span>Students</span></a>
           <a class="tile" href="#sete"><span class="tile-icon"><svg class="icon"><use href="#i-chart"/></svg></span><span>SETE</span></a>
         </nav>
       </div>
@@ -196,6 +199,55 @@
       </section>
     </div>
 
+    <!-- Student outcomes: grades, incompletes, drops, gateway courses and continuation -->
+    <div class="view" data-view="students" hidden>
+      <div id="studentsLocked" hidden></div>
+      <section class="kpis" id="studentKpis" aria-label="Student outcome indicators"></section>
+
+      <section class="card" id="yearCard" aria-labelledby="yearTitle">
+        <div class="card-head">
+          <div>
+            <h2 id="yearTitle">Outcomes by year level</h2>
+            <p class="card-sub">Final grades for each year level this term. Select a row to open its classes.</p>
+          </div>
+        </div>
+        <div class="legend" id="yearLegend"></div>
+        <div id="yearOutcomes"></div>
+      </section>
+
+      <div class="grid two">
+        <section class="card" id="gatewayCard" aria-labelledby="gatewayTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="gatewayTitle">Gateway courses to watch</h2>
+              <p class="card-sub" id="gatewaySub"></p>
+            </div>
+          </div>
+          <div id="gateway"></div>
+        </section>
+
+        <section class="card" id="typeCard" aria-labelledby="typeTitle">
+          <div class="card-head">
+            <div>
+              <h2 id="typeTitle">Results by course type</h2>
+              <p class="card-sub" id="typeSub"></p>
+            </div>
+          </div>
+          <div id="typeOutcomes"></div>
+        </section>
+      </div>
+
+      <section class="card" id="pipelineCard" aria-labelledby="pipelineTitle">
+        <div class="card-head">
+          <div>
+            <h2 id="pipelineTitle">Enrollment and continuation by year level</h2>
+            <p class="card-sub" id="pipelineSub"></p>
+          </div>
+        </div>
+        <div id="pipeline"></div>
+      </section>
+    </div>
+
     <!-- SETE results: dimensions, themes and courses -->
     <div class="view" data-view="sete" hidden>
       <div id="seteLocked"></div>
@@ -226,7 +278,6 @@
             <p class="card-sub">Scores below 3.50 are marked. Select a course to open its classes.</p>
           </div>
         </div>
-        <p class="chart-note swipe-hint">Swipe the table sideways to see each dimension.</p>
         <div id="seteCourses"></div>
       </section>
     </div>
@@ -248,6 +299,7 @@
     <a href="#actions" data-nav="actions"><svg class="icon"><use href="#i-bell"/></svg><span>Actions</span><b class="nav-badge" hidden></b></a>
     <a href="#classes" data-nav="classes"><svg class="icon"><use href="#i-table"/></svg><span>Classes</span></a>
     <a href="#faculty" data-nav="faculty"><svg class="icon"><use href="#i-people"/></svg><span>Faculty</span></a>
+    <a href="#students" data-nav="students"><svg class="icon"><use href="#i-cap"/></svg><span>Students</span></a>
     <a href="#sete" data-nav="sete"><svg class="icon"><use href="#i-chart"/></svg><span>SETE</span></a>
   </nav>
 
@@ -300,6 +352,7 @@
             <tr><td>Action items</td><td>Which classes need me, and why?</td><td>Refer at-risk classes for review and track follow-up</td></tr>
             <tr><td>Classes</td><td>How is each section doing and how full is it?</td><td>Open, merge or rebalance sections at each year level, and follow up on late grades</td></tr>
             <tr><td>Faculty</td><td>Who is overloaded, who has room and who needs support?</td><td>Assign teaching loads and plan mentoring</td></tr>
+            <tr><td>Student outcomes</td><td>How are students finishing, and where do they get stuck?</td><td>Plan review classes for gateway courses, follow up on INC grades and drops, and raise retention concerns by year level</td></tr>
             <tr><td>SETE results</td><td>What do students report by dimension, course and theme?</td><td>Choose faculty development topics</td></tr>
           </tbody>
         </table>
@@ -315,11 +368,12 @@
             <tr><td>Teaching support</td><td>SETE below 3.50, with pass rate at target</td><td>Warning</td></tr>
             <tr><td>Midterm risk</td><td>25% or more of the class failing at midterm</td><td>Warning</td></tr>
             <tr><td>Low response</td><td>Fewer than 50% of students responded</td><td>Caution</td></tr>
+            <tr><td>Many incompletes</td><td>8% or more of the class (at least 3 students) received INC</td><td>Caution</td></tr>
             <tr><td>Late grades</td><td>Grades submitted after the deadline</td><td>Caution</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="chart-note">Course codes, titles, units, year levels and terms follow the BS IT curriculum on the student portal. Sections, enrollment, grades, SETE ratings, comment themes, faculty profiles and teaching assignments are invented. Students are assumed to move in block sections. All targets, the section capacities (45 students, or 30 for smaller NSTP components), the 18-unit load limit and the split of summer courses into Summer 1 and Summer 2 are assumptions. A live system would use the university's official values.</p>
+      <p class="chart-note">Course codes, titles, units, year levels and terms follow the BS IT curriculum on the student portal. Sections, enrollment, grades, SETE ratings, comment themes, faculty profiles and teaching assignments are invented. Students are assumed to move in block sections. Student headcounts are estimated from the largest class in each block, and the student-outcome targets (average grade 2.50, INC under 4%, drops under 3%, 30% midterm recovery, 85% continuation, 80% gateway watch line) are assumptions. All targets, the section capacities (45 students, or 30 for smaller NSTP components), the 18-unit load limit and the split of summer courses into Summer 1 and Summer 2 are assumptions. A live system would use the university's official values.</p>
 
       <h3>Guide questions</h3>
       <div class="qa">

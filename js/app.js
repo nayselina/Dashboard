@@ -11,13 +11,15 @@
     actions: { title: ['Action items'], sub: () => 'Classes that need your follow-up, with the reason and a suggested next step.' },
     classes: { title: ['Classes'], sub: () => 'Check section performance and grade submission, and plan which sections to open or merge.' },
     faculty: { title: ['Faculty'], sub: () => 'Balance teaching loads and plan mentoring for your program.' },
-    sete: { title: ['SETE results'], sub: () => 'See what students report by dimension, course and theme.' }
+    sete: { title: ['SETE results'], sub: () => 'See what students report by dimension, course and theme.' },
+    students: { title: ['Student outcomes'], sub: () => 'Follow final grades, incompletes, drops and year-to-year continuation, and spot gateway courses that hold students back.' }
   };
 
   const state = {
     ...DEFAULTS,
     tab: 'overview',
     course: null,
+    category: null,
     search: '',
     flagged: false,
     sort: { key: 'level', dir: -1 },
@@ -59,6 +61,7 @@
   const passOf = r => (r.passed / r.enrolled) * 100;
   const responseOf = r => (r.responses / r.enrolled) * 100;
   const midtermShare = r => (r.midtermFail / r.enrolled) * 100;
+  const incShare = r => (r.inc / r.enrolled) * 100;
 
   function weightedDim(rows, d) {
     const list = rated(rows);
@@ -144,10 +147,11 @@
     if (midtermShare(r) >= T.midtermClass) issues.push({ level: 'warning', title: 'Midterm risk', why: `${r.midtermFail} of ${r.enrolled} students failed at midterm.`, next: 'Refer these students for advising and academic support.' });
     if (r.responses < T.minResponses) issues.push({ level: 'caution', title: 'Too few responses', why: `Only ${r.responses} of ${r.enrolled} students responded, so the score is hidden.`, next: 'Encourage participation next term. Do not draw conclusions from this class.' });
     else if (responseOf(r) < T.response) issues.push({ level: 'caution', title: 'Low response', why: `Only ${Math.round(responseOf(r))}% of students responded (${r.responses} of ${r.enrolled}).`, next: 'Read this score with caution and encourage participation next term.' });
+    if (r.inc >= 3 && incShare(r) >= T.incClass) issues.push({ level: 'caution', title: 'Many incompletes', why: `${r.inc} of ${r.enrolled} students (${Math.round(incShare(r))}%) received an INC grade.`, next: 'Agree on completion deadlines with the faculty member so these grades are resolved within the allowed period.' });
     if (r.lateDays > 0) issues.push({ level: 'caution', title: 'Late grades', why: `Grades were submitted ${r.lateDays} day${r.lateDays > 1 ? 's' : ''} after the deadline.`, next: 'Check whether the faculty member needs help with the submission schedule.' });
     // A chair cannot mentor or schedule another department's faculty, only raise it with them.
     if (r.service) {
-      issues.filter(i => ['Priority review', 'Teaching support', 'Late grades'].includes(i.title)).forEach(i => {
+      issues.filter(i => ['Priority review', 'Teaching support', 'Late grades', 'Many incompletes'].includes(i.title)).forEach(i => {
         i.next = "Another department teaches this course, so raise this with that department's chair.";
       });
     }
@@ -276,39 +280,45 @@
       values[activeIdx] !== null ? s('circle', { cx: x(activeIdx), cy: y(values[activeIdx]), r: 3, class: 'spark-dot' }) : null);
   }
 
-  function renderKpis() {
-    const idx = comparableIndex();
-    const history = comparableTerms().map(x => metrics(rowsFor(x.ay, x.sem)));
+  // One KPI card body: label and sparkline, value, status, change from the comparable term, target.
+  function kpiBody(k, history, idx) {
     const m = history[idx];
     const prev = idx > 0 ? history[idx - 1] : null;
     const prevSem = previousTerm();
+    const unit = typeof k.unit === 'function' ? k.unit(m) : k.unit;
+    const target = typeof k.target === 'function' ? k.target(m) : k.target;
+    let delta = h('p', { class: 'kpi-delta' }, 'First term on record');
+    if (prev && k.series(prev) !== null && k.series(m) !== null) {
+      const d = k.series(m) - k.series(prev);
+      const flat = Math.abs(d) < (k.flat || .05);
+      const better = k.up ? d > 0 : d < 0;
+      // Context measures, such as headcount, have no better direction.
+      const tone = flat || k.up === null ? '' : better ? 'better' : 'worse';
+      delta = h('p', { class: `kpi-delta ${tone}` },
+        flat ? null : icon(d > 0 ? 'up' : 'down'),
+        flat ? `No change vs ${semLabel(prevSem)}` : `${k.delta(d)} vs ${semLabel(prevSem)}`);
+    }
+    return [
+      h('div', { class: 'kpi-top' }, h('p', { class: 'kpi-label' }, k.label), sparkline(history.map(k.series), idx)),
+      h('p', { class: 'kpi-value' }, k.value(m), unit ? h('small', {}, unit) : null),
+      k.status ? chip(k.status(m)) : h('span', { class: 'status caution' }, icon('info'), 'Context'),
+      delta,
+      h('p', { class: 'kpi-target' }, target)
+    ];
+  }
+
+  function renderKpis() {
+    const idx = comparableIndex();
+    const history = comparableTerms().map(x => metrics(rowsFor(x.ay, x.sem)));
     $('#kpis').replaceChildren(...KPI.map((k, i) => {
-      const status = k.status(m);
-      const unit = typeof k.unit === 'function' ? k.unit(m) : k.unit;
-      let delta = h('p', { class: 'kpi-delta' }, 'First term on record');
-      if (prev && k.series(prev) !== null && k.series(m) !== null) {
-        const d = k.series(m) - k.series(prev);
-        const flat = Math.abs(d) < .05;
-        const better = k.up ? d > 0 : d < 0;
-        delta = h('p', { class: `kpi-delta ${flat ? '' : better ? 'better' : 'worse'}` },
-          flat ? null : icon(d > 0 ? 'up' : 'down'),
-          flat ? `No change vs ${semLabel(prevSem)}` : `${k.delta(d)} vs ${semLabel(prevSem)}`);
-      }
-      const body = [
-        h('div', { class: 'kpi-top' }, h('p', { class: 'kpi-label' }, k.label), sparkline(history.map(k.series), idx)),
-        h('p', { class: 'kpi-value' }, k.value(m), unit ? h('small', {}, unit) : null),
-        chip(status),
-        delta,
-        h('p', { class: 'kpi-target' }, k.target)
-      ];
+      const body = kpiBody(k, history, idx);
       if (!inScope()) return h('article', { class: 'kpi', 'data-note': i + 3 }, body);
       return h('button', {
         type: 'button', class: 'kpi', 'data-note': i + 3,
         title: 'Sort the class list by this measure',
         onclick: () => {
+          clearClassFilters();
           state.sort = { key: k.sort, dir: k.sortDir };
-          state.course = null; state.search = ''; state.flagged = false; state.yearLevel = 'all';
-          $('#search').value = '';
           goTab('classes');
         }
       }, body);
@@ -668,12 +678,21 @@
     ]);
   }
 
-  function openCourse(code) {
-    state.course = code;
-    state.search = '';
-    state.flagged = false;
-    state.yearLevel = 'all';
+  // Every route into the Classes page starts from a clean set of table filters.
+  function clearClassFilters() {
+    Object.assign(state, { course: null, category: null, search: '', flagged: false, yearLevel: 'all' });
     $('#search').value = '';
+  }
+
+  function openCourse(code) {
+    clearClassFilters();
+    state.course = code;
+    goTab('classes');
+  }
+
+  function openCategory(type) {
+    clearClassFilters();
+    state.category = type;
     goTab('classes');
   }
 
@@ -744,6 +763,8 @@
         prevSete: prevRows.length ? weightedSete(prevRows) : null,
         response: pct(sum(rows, r => r.responses), enrolled),
         pass: pct(sum(rows, r => r.passed), enrolled),
+        late: rows.filter(r => r.lateDays > 0),
+        inc: sum(rows, r => r.inc),
         dims,
         weakest: known.length ? DATA.dimensions[dims.indexOf(Math.min(...known))] : null
       };
@@ -762,6 +783,10 @@
     }
     if (f.response < T.response) {
       out.push({ level: 'caution', label: 'Low response', text: `Only ${Math.round(f.response)}% of students responded, so read the score with caution. Encourage participation next term.` });
+    }
+    if (f.late.length) {
+      const most = Math.max(...f.late.map(r => r.lateDays));
+      out.push({ level: 'caution', label: 'Late grades', text: `${f.late.length} of ${f.rows.length} class${f.rows.length > 1 ? 'es' : ''} had grades submitted late, by up to ${most} day${most > 1 ? 's' : ''}. Agree on a submission plan before the next deadline.` });
     }
     if (!isSummer() && f.units > T.loadMax) {
       out.push({ level: 'warning', label: 'Review load', text: `${f.units} units is above the ${T.loadMax}-unit limit. Consider moving a class next term.` });
@@ -845,7 +870,9 @@
         statBox('Teaching load', `${f.units} units`, `${f.programUnits} in ${USER.short}, ${f.profile.otherUnits} other`, f.units > T.loadMax),
         statBox('SETE', f.sete === null ? 'Hidden' : f.sete.toFixed(2), f.sete !== null && f.prevSete !== null ? `${f.prevSete.toFixed(2)} in ${semLabel(previousTerm())}` : 'of 5', f.sete !== null && f.sete < T.sete),
         statBox('Responded', `${Math.round(f.response)}%`, 'across all classes', f.response < T.response),
-        statBox('Pass rate', `${Math.round(f.pass)}%`, 'across all classes', f.pass < T.pass)),
+        statBox('Pass rate', `${Math.round(f.pass)}%`, 'across all classes', f.pass < T.pass),
+        statBox('Grades on time', `${f.rows.length - f.late.length} of ${f.rows.length}`, f.late.length ? 'classes, some late' : 'classes', f.late.length > 0),
+        statBox('Incomplete grades', String(f.inc), 'INC grades to resolve', false)),
       h('section', {}, h('h3', {}, 'Suggested support'),
         f.support.length
           ? h('ul', { class: 'issues' }, f.support.map(x => h('li', {}, chip(x.level, x.label), h('p', {}, x.text))))
@@ -916,14 +943,15 @@
       if (!groups.has(r.code)) groups.set(r.code, []);
       groups.get(r.code).push(r);
     });
-    const scoreCell = v => h('td', { class: `num${v !== null && v < T.sete ? ' below' : ''}` }, v === null ? h('span', { class: 'muted' }, 'Hidden') : v.toFixed(2));
+    const scoreCell = (v, label) => h('td', { 'data-label': label, class: `num${v !== null && v < T.sete ? ' below' : ''}` }, v === null ? h('span', { class: 'muted' }, 'Hidden') : v.toFixed(2));
     const courseRows = [...groups.entries()]
       .map(([code, list]) => ({ code, list, overall: weightedSete(list), title: `${list[0].title} · ${YEAR_NAMES[list[0].year]}` }))
       .sort((a, b) => (a.overall === null) - (b.overall === null) || a.overall - b.overall);
-    $('#seteCourses').replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'plain sete-table' },
+    $('#seteCourses').replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'classes sete-table' },
       h('thead', {}, h('tr', {},
-        h('th', {}, 'Course'), h('th', { class: 'num' }, 'Responded'), h('th', { class: 'num' }, 'Overall'),
-        DATA.dimensions.map(d => h('th', { class: 'num' }, d)))),
+        h('th', {}, h('span', { class: 'th-label' }, 'Course')), h('th', { class: 'num' }, h('span', { class: 'th-label' }, 'Responded')),
+        h('th', { class: 'num' }, h('span', { class: 'th-label' }, 'Overall')),
+        DATA.dimensions.map(d => h('th', { class: 'num' }, h('span', { class: 'th-label wrap' }, d))))),
       h('tbody', {}, courseRows.map(c => {
         const enrolled = sum(c.list, r => r.enrolled);
         const responses = sum(c.list, r => r.responses);
@@ -934,11 +962,314 @@
           onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCourse(c.code); } }
         },
         h('td', { class: 'class-cell' }, h('b', {}, c.code), h('span', {}, c.title)),
-        h('td', { class: `num${rate < T.response ? ' below' : ''}` }, `${Math.round(rate)}%`, h('small', {}, ` ${responses}/${enrolled}`)),
-        scoreCell(c.overall),
-        DATA.dimensions.map((_, d) => scoreCell(weightedDim(c.list, d))));
+        h('td', { 'data-label': 'Responded', class: `num${rate < T.response ? ' below' : ''}` }, `${Math.round(rate)}%`, h('small', {}, ` ${responses}/${enrolled}`)),
+        scoreCell(c.overall, 'Overall'),
+        DATA.dimensions.map((name, d) => scoreCell(weightedDim(c.list, d), name)));
         return tr;
       })))));
+  }
+
+  /* ---------- Student outcomes page ---------- */
+  const OUTCOMES = [
+    { key: 'passed', label: 'Passed', cls: 'out-pass' },
+    { key: 'failed', label: 'Failed', cls: 'out-fail' },
+    { key: 'inc', label: 'Incomplete', cls: 'out-inc' },
+    { key: 'dropped', label: 'Dropped', cls: 'out-drop' }
+  ];
+
+  // Students move in blocks, so a block's largest class is a fair headcount. NSTP groups by component instead.
+  function blockStudents(rows) {
+    const blocks = new Map();
+    rows.filter(r => !/^NSTP/.test(r.code)).forEach(r => {
+      const b = blocks.get(r.section);
+      if (!b || r.enrolled > b.size) blocks.set(r.section, { size: r.enrolled, year: r.year });
+    });
+    return [...blocks.values()];
+  }
+  const studentsIn = (rows, year) => sum(blockStudents(rows).filter(b => !year || b.year === year), b => b.size);
+
+  function outcomeMetrics(rows) {
+    const enrolled = sum(rows, r => r.enrolled);
+    const midtermFail = sum(rows, r => r.midtermFail);
+    const recovered = sum(rows, r => r.midtermRecovered);
+    const inc = sum(rows, r => r.inc), dropped = sum(rows, r => r.dropped);
+    return {
+      enrolled, inc, dropped, midtermFail, recovered,
+      passed: sum(rows, r => r.passed), failed: sum(rows, r => r.failed),
+      students: studentsIn(rows),
+      blocks: blockStudents(rows).length,
+      avgGrade: enrolled ? sum(rows, r => r.avgGrade * r.enrolled) / enrolled : null,
+      incRate: pct(inc, enrolled),
+      dropRate: pct(dropped, enrolled),
+      recovery: midtermFail ? pct(recovered, midtermFail) : null
+    };
+  }
+
+  const OUTCOME_KPI = [
+    {
+      label: 'Students in program', up: null, flat: .5,
+      value: m => m.students.toLocaleString(), unit: 'estimated', series: m => m.students,
+      target: m => `From ${m.blocks} block sections`,
+      drill: { hint: 'See continuation by year level', scroll: '#pipelineCard' },
+      delta: d => `${Math.abs(Math.round(d))} students`
+    },
+    {
+      label: 'Average grade', up: false, flat: .005,
+      value: m => m.avgGrade.toFixed(2), unit: '1.00 is highest', series: m => m.avgGrade,
+      status: m => (m.avgGrade <= T.avgGrade ? 'good' : m.avgGrade <= T.avgGrade + .25 ? 'warning' : 'critical'),
+      drill: { hint: 'List classes with the weakest average grade', metric: r => r.avgGrade, show: r => r.avgGrade.toFixed(2), note: r => `${Math.round(passOf(r))}% passed`, bad: r => r.avgGrade > T.avgGrade },
+      target: 'Target: 2.50 or better', delta: d => `${Math.abs(d).toFixed(2)}`
+    },
+    {
+      label: 'Incomplete grades', up: false,
+      value: m => m.inc.toLocaleString(), unit: m => `${m.incRate.toFixed(1)}% of class enrollments`, series: m => m.incRate,
+      status: m => (m.incRate < T.incRate ? 'good' : m.incRate < T.incRate + 2 ? 'warning' : 'critical'),
+      drill: { hint: 'List classes with the most incomplete grades', metric: r => r.inc, show: r => `${r.inc} INC`, note: r => `${Math.round(incShare(r))}% of class`, bad: r => incShare(r) >= T.incClass, keep: r => r.inc > 0 },
+      target: 'Target: under 4% of class enrollments', delta: d => `${Math.abs(d).toFixed(1)} pts`
+    },
+    {
+      label: 'Dropped', up: false,
+      value: m => m.dropped.toLocaleString(), unit: m => `${m.dropRate.toFixed(1)}% of class enrollments`, series: m => m.dropRate,
+      status: m => (m.dropRate < T.dropRate ? 'good' : m.dropRate < T.dropRate + 2 ? 'warning' : 'critical'),
+      drill: { hint: 'List classes with the most drops', metric: r => r.dropped, show: r => `${r.dropped} dropped`, note: r => `${Math.round(pct(r.dropped, r.enrolled))}% of class`, bad: r => pct(r.dropped, r.enrolled) >= T.dropRate, keep: r => r.dropped > 0 },
+      target: 'Target: under 3% of class enrollments', delta: d => `${Math.abs(d).toFixed(1)} pts`
+    },
+    {
+      label: 'Midterm recovery', up: true,
+      value: m => (m.recovery === null ? '–' : `${Math.round(m.recovery)}%`),
+      unit: m => `${m.recovered} of ${m.midtermFail} passed`, series: m => m.recovery,
+      status: m => (m.recovery === null ? 'caution' : m.recovery >= T.recovery ? 'good' : m.recovery >= T.recovery - 10 ? 'warning' : 'critical'),
+      drill: { hint: 'List classes with the lowest midterm recovery', metric: r => -pct(r.midtermRecovered, r.midtermFail), show: r => `${Math.round(pct(r.midtermRecovered, r.midtermFail))}%`, note: r => `${r.midtermRecovered} of ${r.midtermFail} recovered`, bad: r => pct(r.midtermRecovered, r.midtermFail) < T.recovery, keep: r => r.midtermFail >= 3 },
+      target: 'Target: 30% or more of midterm fails pass', delta: d => `${Math.abs(d).toFixed(1)} pts`
+    }
+  ];
+
+  function outcomeBar(o, title) {
+    const total = o.passed + o.failed + o.inc + o.dropped;
+    const lines = OUTCOMES.map(x => ({ value: `${o[x.key]} (${Math.round(pct(o[x.key], total))}%)`, label: x.label }));
+    return h('span', {
+      class: 'outcome-bar', role: 'img',
+      'aria-label': `${title}: ${OUTCOMES.map(x => `${x.label} ${o[x.key]}`).join(', ')}`,
+      onpointermove: e => showTip(e.clientX, e.clientY, title, lines),
+      onpointerleave: hideTip
+    }, OUTCOMES.filter(x => o[x.key] > 0).map(x =>
+      h('span', { class: `seg-fill ${x.cls}`, style: `flex-grow:${o[x.key]}` })));
+  }
+
+  // A KPI card on the Student outcomes page opens the classes behind that number, worst first.
+  function openRanking(k, from) {
+    const d = k.drill;
+    if (d.scroll) {
+      // The page's scroll-behavior decides smoothness, so reduced-motion settings are respected.
+      const target = $(d.scroll);
+      target.setAttribute('tabindex', '-1');
+      target.scrollIntoView({ block: 'start' });
+      target.focus({ preventScroll: true });
+      return;
+    }
+    lastFocus = from || null;
+    const list = currentRows().filter(d.keep || (() => true)).sort((a, b) => d.metric(b) - d.metric(a)).slice(0, 10);
+    $('#drawerTitle').textContent = k.label;
+    $('#drawerSub').textContent = `${d.hint.replace('List classes', 'Classes')} · ${semLabel(currentTerm(), true)}`;
+    $('#drawerBody').replaceChildren(
+      list.length
+        ? h('ul', { class: 'mini-classes ranked' }, list.map(r => h('li', {}, h('button', {
+          type: 'button', onclick: () => openDrawer(r, from)
+        },
+        h('span', {}, h('b', {}, `${r.code} · ${r.section}`), h('small', {}, `${r.title} · ${r.faculty}`)),
+        h('span', { class: `rank-value${d.bad(r) ? ' below-text' : ''}` }, h('b', {}, d.show(r)), h('small', {}, d.note(r)))))))
+        : h('p', { class: 'calm-line' }, icon('check'), 'No class to list for this term.'),
+      h('p', { class: 'chart-note' }, 'Up to 10 classes, worst first. Values in red miss the target. Select a class for its details.'));
+    showDrawer();
+  }
+
+  function openYear(year) {
+    clearClassFilters();
+    state.yearLevel = year;
+    goTab('classes');
+  }
+
+  function renderStudents() {
+    const scoped = inScope();
+    ['#studentKpis', '#yearCard', '#typeCard', '#gatewayCard', '#pipelineCard'].forEach(id => { $(id).hidden = !scoped; });
+    $('#studentsLocked').hidden = scoped;
+    if (!scoped) {
+      $('#studentsLocked').replaceChildren(h('section', { class: 'card' }, lockMessage(RESTRICTED)));
+      return;
+    }
+    const rows = currentRows();
+    const idx = comparableIndex();
+    const history = comparableTerms().map(x => outcomeMetrics(rowsFor(x.ay, x.sem)));
+    $('#studentKpis').replaceChildren(...OUTCOME_KPI.map(k => h('button', {
+      type: 'button', class: 'kpi', title: k.drill.hint,
+      onclick: e => openRanking(k, e.currentTarget)
+    }, kpiBody(k, history, idx))));
+
+    renderYearOutcomes(rows);
+    renderCourseTypes(rows);
+    renderGateway(rows);
+    renderPipeline();
+  }
+
+  function renderYearOutcomes(rows) {
+    const years = [...new Set(rows.map(r => r.year))].sort();
+    legend($('#yearLegend'), OUTCOMES.map(x => ({ key: x.cls, label: x.label })));
+    const cell = (label, cls, ...c) => h('td', { 'data-label': label, class: cls }, ...c);
+    const trs = years.map(y => {
+      const list = rows.filter(r => r.year === y);
+      const o = outcomeMetrics(list);
+      const pass = pct(o.passed, o.enrolled);
+      const mid = pct(o.midtermFail, o.enrolled);
+      const sete = weightedSete(list);
+      const tr = h('tr', {
+        class: 'row', tabindex: 0, 'aria-label': `Open ${YEAR_NAMES[y]} classes`,
+        onclick: () => { hideTip(); openYear(y); },
+        onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openYear(y); } }
+      },
+      cell('Year level', 'class-cell', h('b', {}, YEAR_NAMES[y]), h('span', {}, `${studentsIn(list, y)} students · ${list.length} class${list.length > 1 ? 'es' : ''}`)),
+      cell('Final grades', 'outcome-cell', outcomeBar(o, `${YEAR_NAMES[y]} final grades`)),
+      cell('Pass rate', `num${pass < T.pass ? ' below' : ''}`, `${Math.round(pass)}%`),
+      cell('INC', `num${o.incRate >= T.incRate ? ' below' : ''}`, String(o.inc)),
+      cell('Dropped', `num${o.dropRate >= T.dropRate ? ' below' : ''}`, String(o.dropped)),
+      cell('Average grade', `num${o.avgGrade > T.avgGrade ? ' below' : ''}`, o.avgGrade.toFixed(2)),
+      cell('Midterm fails', `num${mid >= T.atRiskShare ? ' below' : ''}`, `${Math.round(mid)}%`),
+      cell('SETE', `num${sete !== null && sete < T.sete ? ' below' : ''}`, sete === null ? h('span', { class: 'muted' }, 'Hidden') : sete.toFixed(2)));
+      return tr;
+    });
+    const head = ['Year level', 'Final grades', 'Pass rate', 'INC', 'Dropped', 'Average grade', 'Midterm fails', 'SETE'];
+    $('#yearOutcomes').replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'classes year-table' },
+      h('thead', {}, h('tr', {}, head.map((t, i) => h('th', { scope: 'col', class: i > 1 ? 'num' : null }, h('span', { class: 'th-label' }, t))))),
+      h('tbody', {}, trs))),
+    h('p', { class: 'chart-note' }, 'Counts are class enrollments, so a student with two INC grades counts twice. Midterm fails are shown against the 15% target.'));
+  }
+
+  function renderCourseTypes(rows) {
+    const cell = (label, cls, ...c) => h('td', { 'data-label': label, class: cls }, ...c);
+    const groups = DATA.courseTypes.map(type => ({ type, list: rows.filter(r => r.category === type) })).filter(g => g.list.length);
+    const trs = groups.map(({ type, list }) => {
+      const o = outcomeMetrics(list);
+      const pass = pct(o.passed, o.enrolled);
+      const sete = weightedSete(list);
+      const service = list.filter(r => r.service).length;
+      const by = service === 0 ? `${USER.short} faculty` : service === list.length ? 'Other departments' : `${list.length - service} by ${USER.short}, ${service} by others`;
+      return h('tr', {
+        class: 'row', tabindex: 0, 'aria-label': `Open ${type.toLowerCase()} classes`,
+        onclick: () => openCategory(type),
+        onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCategory(type); } }
+      },
+        cell('Course type', 'class-cell', h('b', {}, type), h('span', {}, `${list.length} class${list.length > 1 ? 'es' : ''} · ${by}`)),
+        cell('Pass rate', 'type-pass', h('span', { class: 'type-bar' },
+          h('span', { class: 'bar-track' },
+            h('span', { class: `bar-fill ${pass < T.pass ? 'alert-mark' : 'ok-mark'}`, style: `width:${pass.toFixed(1)}%` }),
+            h('span', { class: 'bar-target', style: `left:${T.pass}%` })),
+          h('b', { class: pass < T.pass ? 'below-text' : null }, `${Math.round(pass)}%`))),
+        cell('SETE', `num${sete !== null && sete < T.sete ? ' below' : ''}`, sete === null ? h('span', { class: 'muted' }, 'Hidden') : sete.toFixed(2)),
+        cell('Average grade', `num${o.avgGrade > T.avgGrade ? ' below' : ''}`, o.avgGrade.toFixed(2)),
+        cell('INC + drop', 'num', `${(o.incRate + o.dropRate).toFixed(1)}%`));
+    });
+    const lowest = groups.map(g => ({ type: g.type, pass: pct(sum(g.list, r => r.passed), sum(g.list, r => r.enrolled)) }))
+      .sort((a, b) => a.pass - b.pass)[0];
+    $('#typeSub').textContent = lowest ? `Lowest pass rate: ${lowest.type.toLowerCase()} (${Math.round(lowest.pass)}%).` : '';
+    $('#typeOutcomes').replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'classes type-table' },
+      h('thead', {}, h('tr', {}, ['Course type', 'Pass rate', 'SETE', 'Avg. grade', 'INC + drop']
+        .map((t, i) => h('th', { scope: 'col', class: i > 1 ? 'num' : null }, h('span', { class: 'th-label' }, t))))),
+      h('tbody', {}, trs))),
+    h('p', { class: 'chart-note' }, 'The tick marks the 75% pass target. Select a row to open those classes. For courses taught by other departments, raise concerns with that department\'s chair.'));
+  }
+
+  // Courses that sit below or near the pass target term after term, not just once.
+  function gatewayCourses(rows) {
+    const terms = DATA.regularTerms;
+    const until = isSummer()
+      ? terms.findIndex(x => x.ay === state.ay && x.sem === 2)
+      : trendIndex();
+    const codes = [...new Set(DATA.records.filter(r => matchesOrg(r) && r.sem <= 2 && !/^(NSTP|PATHFit)/.test(r.code)).map(r => r.code))];
+    return codes.map(code => {
+      const offerings = terms.slice(0, until + 1).map(x => {
+        const list = rowsFor(x.ay, x.sem).filter(r => r.code === code);
+        return list.length ? { term: x, pass: pct(sum(list, r => r.passed), sum(list, r => r.enrolled)), list } : null;
+      }).filter(Boolean);
+      const last3 = offerings.slice(-3);
+      const low = last3.filter(o => o.pass < T.gatewayWatch).length;
+      const sample = offerings[offerings.length - 1];
+      return sample && {
+        code, title: sample.list[0].title, category: sample.list[0].category,
+        service: sample.list.every(r => r.service),
+        offerings, last3, low, latest: sample.pass,
+        offeredNow: rows.some(r => r.code === code)
+      };
+    }).filter(c => c && c.last3.length >= 2 && c.low >= 2)
+      .sort((a, b) => a.latest - b.latest);
+  }
+
+  function renderGateway(rows) {
+    const list = gatewayCourses(rows);
+    $('#gatewaySub').textContent = `Below ${T.gatewayWatch}% pass in at least 2 of the last 3 offerings, up to ${semLabel(DATA.regularTerms[Math.max(0, isSummer() ? DATA.regularTerms.findIndex(x => x.ay === state.ay && x.sem === 2) : trendIndex())])}.`;
+    if (!list.length) {
+      $('#gateway').replaceChildren(h('div', { class: 'locked calm' }, icon('check'), h('p', {}, 'No course is repeatedly below or near the pass target.')));
+      return;
+    }
+    $('#gateway').replaceChildren(h('ul', { class: 'gateway-list' }, list.map(c => {
+      const first = c.last3[0].pass;
+      const trend = c.latest < first - 2 ? 'falling' : c.latest > first + 2 ? 'rising' : 'steady';
+      const advice = c.service
+        ? "Taught by another department: ask its chair about review sessions, and check that students meet the prerequisites."
+        : 'Review prerequisites and assessments with the faculty, and offer peer tutoring or a review class before midterm.';
+      return h('li', { class: 'gateway-item' },
+        h('div', { class: 'gateway-head' },
+          h('div', {}, h('b', {}, c.code), h('span', {}, `${c.title} · ${c.category}`)),
+          c.latest < T.pass ? chip('critical', 'Below target') : chip('warning', 'Near target')),
+        h('div', { class: 'gateway-trend' },
+          sparkline(c.offerings.map(o => o.pass), c.offerings.length - 1),
+          h('span', {}, `Last 3 offerings: ${c.last3.map(o => `${Math.round(o.pass)}%`).join(', ')} (${trend})`)),
+        h('p', { class: 'next' }, advice),
+        c.offeredNow ? h('button', { type: 'button', class: 'link-btn', onclick: () => openCourse(c.code) }, 'Open classes this term') : null);
+    })));
+  }
+
+  // Older semesters fold away on smaller screens; the trend line keeps their shape visible.
+  // The focus column (the selected semester, or the latest one during summer) never folds.
+  function colClass(i, sel, n) {
+    const focus = sel >= 0 ? sel : n - 1;
+    if (i === focus) return `col-term col-focus${i === sel ? ' current-col' : ''}`;
+    const age = n - 1 - i;
+    return ['col-term', age >= 2 ? 'col-old' : '', age >= 4 ? 'col-oldest' : ''].filter(Boolean).join(' ');
+  }
+
+  function renderPipeline() {
+    const terms = DATA.regularTerms;
+    const sel = isSummer() ? -1 : trendIndex();
+    const counts = [1, 2, 3, 4].map(y => terms.map(x => studentsIn(rowsFor(x.ay, x.sem), y)));
+    // Continuation compares each year level in the 1st semester with the level below it a year earlier.
+    const ayFirst = terms.findIndex(x => x.ay === state.ay && x.sem === 1);
+    // Regular terms alternate 1st and 2nd semester, so the same semester a year earlier is two steps back.
+    const prevFirst = ayFirst >= 2 ? ayFirst - 2 : -1;
+    const cont = y => (y > 1 && prevFirst >= 0 && counts[y - 2][prevFirst]
+      ? pct(counts[y - 1][ayFirst], counts[y - 2][prevFirst]) : null);
+    const worst = [2, 3, 4].map(y => ({ y, v: cont(y) }))
+      .filter(x => x.v !== null && x.v < T.continuation)
+      .sort((a, b) => a.v - b.v)[0];
+    $('#pipelineSub').textContent = worst
+      ? `Largest drop: ${YEAR_NAMES[worst.y - 1]} to ${YEAR_NAMES[worst.y]}, with ${Math.round(worst.v)}% continuing. Estimated from block section sizes.`
+      : 'Estimated students per year level, from block section sizes.';
+    $('#pipeline').replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'plain numeric pipeline-table' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'Year level'), h('th', { class: 'col-trend' }, 'Trend'),
+        terms.map((x, i) => h('th', { class: colClass(i, sel, terms.length) }, semLabel(x))),
+        h('th', { title: `Academic year ${state.ay.replace('-', '–')}` }, 'Continued'))),
+      h('tbody', {}, counts.map((row, i) => {
+        const c = cont(i + 1);
+        const y = i + 1;
+        return h('tr', {
+          class: 'row', tabindex: 0, 'aria-label': `Open ${YEAR_NAMES[y]} classes`,
+          onclick: () => openYear(y),
+          onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openYear(y); } }
+        },
+          h('td', {}, YEAR_NAMES[y]),
+          h('td', { class: 'col-trend' }, sparkline(row, sel >= 0 ? sel : row.length - 1)),
+          row.map((v, j) => h('td', { class: colClass(j, sel, terms.length) }, String(v))),
+          h('td', { class: c !== null && c < T.continuation ? 'below' : null }, c === null ? '–' : `${Math.round(c)}%`));
+      })))),
+    h('p', { class: 'chart-note' }, `Select a row to open that year's classes. Continued, for AY ${state.ay.replace('-', '–')}, compares a year level in the 1st semester with the year level below it one year earlier. Shifting out, stopping and irregular loads all lower it. Target: ${T.continuation}% or more.`));
   }
 
   /* ---------- Class table ---------- */
@@ -959,6 +1290,7 @@
     const col = COLUMNS.find(c => c.key === state.sort.key);
     return currentRows()
       .filter(r => !state.course || r.code === state.course)
+      .filter(r => !state.category || r.category === state.category)
       .filter(r => state.yearLevel === 'all' || r.year === state.yearLevel)
       .filter(r => !state.flagged || levelOf(r) !== 'good')
       .filter(r => !q || `${r.code} ${r.title} ${r.section} ${r.faculty}`.toLowerCase().includes(q))
@@ -983,8 +1315,12 @@
       return;
     }
     renderPlanning();
-    chipBtn.hidden = !state.course;
-    if (state.course) chipBtn.replaceChildren(`Course: ${state.course}`, icon('close'));
+    const filterLabel = state.course ? `Course: ${state.course}` : state.category ? `Type: ${state.category}` : null;
+    chipBtn.hidden = !filterLabel;
+    if (filterLabel) {
+      chipBtn.replaceChildren(filterLabel, icon('close'));
+      chipBtn.setAttribute('aria-label', `Remove filter ${filterLabel}`);
+    }
     $('#flaggedBtn').setAttribute('aria-pressed', String(state.flagged));
     const years = [...new Set(currentRows().map(r => r.year))].sort();
     $('#yearLevels').replaceChildren(segmented(
@@ -1113,7 +1449,8 @@
       h('div', { class: 'grade-grid' },
         [['Passed', r.passed], ['Failed', r.failed], ['Incomplete', r.inc], ['Dropped', r.dropped]]
           .map(([label, value]) => h('div', {}, h('b', {}, String(value)), h('span', {}, label)))),
-      h('p', { class: 'chart-note' }, `Average grade ${r.avgGrade.toFixed(2)}, where 1.00 is the highest and 3.00 is the lowest passing grade. Grades submitted ${r.lateDays ? `${r.lateDays} day${r.lateDays > 1 ? 's' : ''} late` : 'on time'}.`));
+      h('p', { class: 'chart-note' }, `Average grade ${r.avgGrade.toFixed(2)}, where 1.00 is the highest and 3.00 is the lowest passing grade. Grades submitted ${r.lateDays ? `${r.lateDays} day${r.lateDays > 1 ? 's' : ''} late` : 'on time'}.`),
+      r.midtermFail ? h('p', { class: 'chart-note' }, `Midterm recovery: ${r.midtermRecovered} of the ${r.midtermFail} students failing at midterm went on to pass (${Math.round(pct(r.midtermRecovered, r.midtermFail))}%).`) : null);
 
     $('#drawerBody').replaceChildren(
       h('div', { class: 'stats' },
@@ -1173,7 +1510,7 @@
     const next = tabFromHash();
     const changed = next !== state.tab;
     // A course filter belongs to one trip to the Classes page.
-    if (changed && state.tab === 'classes') state.course = null;
+    if (changed && state.tab === 'classes') { state.course = null; state.category = null; }
     state.tab = next;
     $$('[data-view]').forEach(v => { v.hidden = v.getAttribute('data-view') !== next; });
     $$('[data-nav]').forEach(a => {
@@ -1210,6 +1547,7 @@
     else if (state.tab === 'classes') renderTable();
     else if (state.tab === 'faculty') renderFaculty();
     else if (state.tab === 'sete') renderSete();
+    else if (state.tab === 'students') renderStudents();
     addLabels();
   }
 
@@ -1223,6 +1561,7 @@
   function onFilter(key, value) {
     state[key] = value;
     state.course = null;
+    state.category = null;
     state.barsAll = false;
     state.yearLevel = 'all';
     renderAll();
@@ -1231,7 +1570,7 @@
   $('#fAy').addEventListener('change', e => onFilter('ay', e.target.value));
   $('#fSem').addEventListener('change', e => onFilter('sem', Number(e.target.value)));
   $('#resetBtn').addEventListener('click', () => {
-    Object.assign(state, DEFAULTS, { course: null, search: '', flagged: false, actionLevel: 'all', actionStatus: 'open', yearLevel: 'all', barsAll: false, sort: { key: 'level', dir: -1 } });
+    Object.assign(state, DEFAULTS, { course: null, category: null, search: '', flagged: false, actionLevel: 'all', actionStatus: 'open', yearLevel: 'all', barsAll: false, sort: { key: 'level', dir: -1 } });
     $('#search').value = '';
     renderAll();
   });
@@ -1246,7 +1585,7 @@
   $('#trendToggle').addEventListener('click', () => { state.trendTable = !state.trendTable; renderTrend(); });
   $('#search').addEventListener('input', e => { state.search = e.target.value; renderTable(); });
   $('#flaggedBtn').addEventListener('click', () => { state.flagged = !state.flagged; renderTable(); });
-  $('#courseChip').addEventListener('click', () => { state.course = null; renderTable(); });
+  $('#courseChip').addEventListener('click', () => { state.course = null; state.category = null; renderTable(); });
 
   $$('[data-open-notes]').forEach(b => b.addEventListener('click', () => openNotes()));
   $$('dialog').forEach(dlg => {
