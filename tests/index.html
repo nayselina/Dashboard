@@ -29,7 +29,9 @@
     .detail { grid-column: 2; color: var(--bad); font-size: 13px; }
     .detail:empty { display: none; }
     body.failures-only li.pass { display: none; }
-    #stage { position: fixed; left: -10000px; top: 0; }
+    /* The app frame stays inside the viewport (but invisible): browsers pause rendering and
+       resize events for off-screen frames, which would stall the resize tests. */
+    #stage { position: fixed; left: 0; top: 0; z-index: -1; opacity: 0; pointer-events: none; }
     #stage iframe { border: 0; display: block; }
     #report { display: none; }
   </style>

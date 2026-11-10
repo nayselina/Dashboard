@@ -509,7 +509,10 @@ suite('Responsive layout', () => {
     const before = svgWidth();
     // At 800px the layout drops to one column, so the chart's box changes size; wait for the redraw.
     a.frame.style.width = '800px';
-    for (let i = 0; i < 30 && svgWidth() !== a.$('#scatter').clientWidth; i++) await wait(100);
+    // Wait on painted frames, not just time: resize observers run as part of painting a frame,
+    // and headless browsers paint only when a frame is requested.
+    const nextFrame = () => new Promise(r => a.w.requestAnimationFrame(() => r()));
+    for (let i = 0; i < 30 && svgWidth() !== a.$('#scatter').clientWidth; i++) { await nextFrame(); await wait(100); }
     expect(a.$('#scatter').clientWidth === before, 'container width changed').toBe(false);
     expect(svgWidth(), 'scatter redrawn to its new container width').toBe(a.$('#scatter').clientWidth);
   });
