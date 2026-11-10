@@ -522,6 +522,7 @@
       { key: 'dot-ok', label: 'On track' },
       { key: 'dot-hollow', label: 'Under 50% responded' }
     ]);
+    addLabels(); // the chart was rebuilt, so restore its component label
   }
 
   /* ---------- Visualization 2: small-multiple lines ---------- */
@@ -676,6 +677,7 @@
       { key: 'bar-ok', label: 'At or above target' },
       { key: 'tick-target', label: '75% target' }
     ]);
+    addLabels(); // the list was rebuilt, so restore its component label
   }
 
   // Every route into the Classes page starts from a clean set of table filters.
@@ -1063,7 +1065,7 @@
       // The page's scroll-behavior decides smoothness, so reduced-motion settings are respected.
       const target = $(d.scroll);
       target.setAttribute('tabindex', '-1');
-      target.scrollIntoView({ block: 'start' });
+      target.scrollIntoView({ block: 'start' }); // honors scroll-padding-top below the pinned filters
       target.focus({ preventScroll: true });
       return;
     }
@@ -1599,6 +1601,29 @@
       lastFocus = null;
     });
   });
+
+  /* ---------- Pinned filter bar ---------- */
+  // The bar shows a lifted shadow only while pinned, and anything the page scrolls to
+  // (anchors, "scroll to section" links) stops below it instead of hiding underneath.
+  const filtersBar = $('#filters');
+  const PIN_TOP = 12;
+  function syncPinned() {
+    const pinned = getComputedStyle(filtersBar).position === 'sticky' &&
+      window.scrollY > 0 && filtersBar.getBoundingClientRect().top <= PIN_TOP + 1;
+    filtersBar.classList.toggle('stuck', pinned);
+  }
+  // One layout read per scroll event is cheap, and it keeps the shadow in step with the scroll.
+  window.addEventListener('scroll', syncPinned, { passive: true });
+  syncPinned();
+
+  function syncScrollPadding() {
+    const sticky = getComputedStyle(filtersBar).position === 'sticky';
+    document.documentElement.style.scrollPaddingTop = sticky
+      ? `${PIN_TOP + filtersBar.offsetHeight + 16}px`
+      : '12px';
+  }
+  new ResizeObserver(syncScrollPadding).observe(filtersBar);
+  window.addEventListener('resize', syncScrollPadding);
 
   let resizeTimer;
   let lastWidth = 0;
